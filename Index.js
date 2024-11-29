@@ -72,7 +72,7 @@ async function connectToWhatsApp() {
                         try {
                             const groupMetadata = await sock.groupMetadata(message.key.remoteJid);
                             const participants = groupMetadata.participants.map(p => p.id);
-                            const IaTag = await sendMessageToChat("El admin ha pedido mencionar a todos...");
+                            const IaTag = await generateResponse("El admin ha pedido mencionar a todos...");
                             const messageText = `${IaTag} 👋\n${participants.map(jid => `@${jid.split('@')[0]}`).join(' ')}`;
 
                             await sock.sendMessage(message.key.remoteJid, {
