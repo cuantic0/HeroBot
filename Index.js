@@ -4,14 +4,14 @@ import { Boom } from '@hapi/boom';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { sendMessageToChat } from './AIconnect.js';
+import { sendMessageToChat, generateResponse } from './AIconnect.js';
 
 // Obtener el directorio del archivo actual
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuración para grupos y administradores permitidos
-const TARGET_GROUP_IDS = ['120363341864492992@g.us', "120363343269312032@g.us", "120363362940692942@g.us"];
+const TARGET_GROUP_IDS = ['120363373101966283@g.us','120363344097546623@g.us','120363341864492992@g.us', "120363343269312032@g.us", "120363362940692942@g.us"];
 const ALLOWED_ADMINS = ['5492615879232@s.whatsapp.net'];
 
 // Configurar Express
@@ -72,7 +72,7 @@ async function connectToWhatsApp() {
                         try {
                             const groupMetadata = await sock.groupMetadata(message.key.remoteJid);
                             const participants = groupMetadata.participants.map(p => p.id);
-                            const IaTag = await generateResponse("El admin ha pedido mencionar a todos...");
+                            const IaTag = 'Holas, el admin los solicita asi que aparezcan, ya cansan'
                             const messageText = `${IaTag} 👋\n${participants.map(jid => `@${jid.split('@')[0]}`).join(' ')}`;
 
                             await sock.sendMessage(message.key.remoteJid, {
@@ -97,22 +97,43 @@ async function connectToWhatsApp() {
             }
         });
 
-        // Manejar eventos de cambios en el grupo
         sock.ev.on('group-participants.update', async (event) => {
-            const { remoteJid, participants, action } = event;
-
-            if (!TARGET_GROUP_IDS.includes(remoteJid)) return;
-
+            const { id, participants, action } = event;
+            
+            // Asegúrate de que el grupo está en la lista de grupos permitidos
+            if (!TARGET_GROUP_IDS.includes(id)) {
+                return;
+            }
+        
+            // Obtener los datos del grupo (incluyendo la lista de participantes)
+            const groupMetadata = await sock.groupMetadata(id);
+            const participantsGroup = groupMetadata.participants.map(p => p.id);  // Aquí obtienes los JIDs de los participantes
+        
+            // Construir el texto de la mención con todos los miembros del grupo
+            const mentions = participantsGroup;
+        
+            // Procesar cada participante que haya sido añadido o removido
             for (let participant of participants) {
+                let messageText = "";
+                
+                // Definir el mensaje según la acción (add o remove)
                 if (action === 'add') {
-                    const welcomeMessage = await sendMessageToChat(`Se ha añadido a ${participant.split('@')[0]} al grupo, ¡dale tremenda bienvenida!`);
-                    await sock.sendMessage(remoteJid, { text: welcomeMessage, mentions: [participant] });
+                    messageText = `Se ha unido ${participant.split('@')[0]} a nuestro grupo de subnormales, saluden o esas cosas, ¡dale tremenda bienvenida! 👋\n${participantsGroup.map(jid => `@${jid.split('@')[0]}`).join(' ')}`;
                 } else if (action === 'remove') {
-                    const farewellMessage = await sendMessageToChat(`Se ha retirado a ${participant.split('@')[0]} del grupo. ¡Dale un adiós!`);
-                    await sock.sendMessage(remoteJid, { text: farewellMessage, mentions: [participant] });
+                    messageText = `Se ha retirado ${participant.split('@')[0]} del grupo. ¡Dale un adiós!`;
+                }
+        
+                // Enviar el mensaje con menciones
+                if (messageText) {
+                    await sock.sendMessage(id, { 
+                        text: messageText, 
+                        mentions: participantsGroup  // Aquí pasamos los JIDs a los que se va a mencionar
+                    });
                 }
             }
         });
+        
+        
     } catch (error) {
         console.error('Error conectándose a WhatsApp:', error);
     }
